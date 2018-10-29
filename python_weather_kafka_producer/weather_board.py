@@ -7,12 +7,14 @@ import os
 from kafka import KafkaProducer
 import json
 
-if len(sys.argv) != 2:
-    print "Usage: weather_board.py <i2c device file>"
+if len(sys.argv) != 3:
+    print "Usage: weather_board.py <i2c device file> <kafka bootstrap server>"
     sys.exit()
 
 si1132 = SI1132.SI1132(sys.argv[1])
 bme280 = BME280.BME280(sys.argv[1], 0x03, 0x02, 0x02, 0x02)
+
+producer = KafkaProducer(bootstrap_servers=sys.argv[2])
 
 def get_altitude(pressure, seaLevel):
     atmospheric = pressure / 100.0
