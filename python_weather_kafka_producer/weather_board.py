@@ -14,7 +14,11 @@ if len(sys.argv) != 3:
 si1132 = SI1132.SI1132(sys.argv[1])
 bme280 = BME280.BME280(sys.argv[1], 0x03, 0x02, 0x02, 0x02)
 
-producer = KafkaProducer(bootstrap_servers=sys.argv[2])
+producer_server = sys.argv[2].strip()
+
+print "Connecting Kafka Producer to", producer_server
+
+producer = KafkaProducer(bootstrap_servers=producer_server)
 
 def get_altitude(pressure, seaLevel):
     atmospheric = pressure / 100.0
@@ -36,10 +40,12 @@ while True:
     temperature = bme280.read_temperature()
     humidity = bme280.read_humidity()
     pressure = bme280.read_pressure()
-    altitude = get_altitude(p, 1024.25)
+    altitude = get_altitude(pressure, 1024.25)
 
-    message = { 'temperature': temperature, 'humidity': humidity, 'pressure': pressure, 'altitude': altitude }
+    message = { 'temperature': temperature, 'humidity': humidity, 'pressure': pressure / 100.0, 'altitude': altitude }
+
+    print message
     
-    producer.send('measurements', json.dumps(message).encode('utf-8')
+    producer.send('measurements', json.dumps(message).encode('utf-8'))
 
-    time.sleep(1)
+    time.sleep(15)
