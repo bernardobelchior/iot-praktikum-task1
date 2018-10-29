@@ -4,8 +4,11 @@ import BME280
 import sys
 import time
 import os
-from kafka import KafkaProducer
 import json
+import pytz
+
+from kafka import KafkaProducer
+from datetime import datetime
 
 if len(sys.argv) != 3:
     print "Usage: weather_board.py <i2c device file> <kafka bootstrap server>"
@@ -24,25 +27,28 @@ def get_altitude(pressure, seaLevel):
     atmospheric = pressure / 100.0
     return 44330.0 * (1.0 - pow(atmospheric/seaLevel, 0.1903))
 
+timezone = pytz.timezone('Europe/Berlin')
+
 while True:
-    #os.system('clear')
-#    print "======== si1132 ========"
-#    print "UV_index : %.2f" % (si1132.readUV() / 100.0)
-#    print "Visible :", int(si1132.readVisible()), "Lux"
-#    print "IR :", int(si1132.readIR()), "Lux"
-#    print "======== bme280 ========"
-    #print "temperature : %.2f 'C" % bme280.read_temperature()
-    #print "humidity : %.2f %%" % bme280.read_humidity()
-    #p = bme280.read_pressure()
-    #print "pressure : %.2f hPa" % (p / 100.0)
-    #print "altitude : %.2f m" % get_altitude(p, 1024.25)
+    # os.system('clear')
+    # print "======== si1132 ========"
+    # print "UV_index : %.2f" % (si1132.readUV() / 100.0)
+    # print "Visible :", int(si1132.readVisible()), "Lux"
+    # print "IR :", int(si1132.readIR()), "Lux"
+    # print "======== bme280 ========"
+    # print "temperature : %.2f 'C" % bme280.read_temperature()
+    # print "humidity : %.2f %%" % bme280.read_humidity()
+    # p = bme280.read_pressure()
+    # print "pressure : %.2f hPa" % (p / 100.0)
+    # print "altitude : %.2f m" % get_altitude(p, 1024.25)
 
     temperature = bme280.read_temperature()
     humidity = bme280.read_humidity()
     pressure = bme280.read_pressure()
     altitude = get_altitude(pressure, 1024.25)
+    timestamp = datetime.now(timezone).isoformat()
 
-    message = { 'temperature': temperature, 'humidity': humidity, 'pressure': pressure / 100.0, 'altitude': altitude }
+    message = { 'temperature': temperature, 'humidity': humidity, 'pressure': pressure / 100.0, 'altitude': altitude, 'timestamp': timestamp }
 
     print message
     
