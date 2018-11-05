@@ -29,7 +29,7 @@ public class NotificationManager {
         });
     }
 
-    public void sendNotification(float threshold, float currentValue) throws MessagingException {
+    public void sendNotification(float threshold, double currentValue) throws MessagingException {
         String msgText = "The temperature in your room is above the defined threshold.\n"
                 + "The current value of the threshold is " + threshold + "ºC and the current temperature is " + currentValue + "ºC.";
 

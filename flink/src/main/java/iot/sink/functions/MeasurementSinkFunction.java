@@ -38,7 +38,7 @@ public class MeasurementSinkFunction implements ElasticsearchSinkFunction<Object
 
         float temperature = content.get("temperature").floatValue();
 
-        data.put("timestamp", content.get("timestamp"));
+        data.put("timestamp", content.get("timestamp").asText());
         data.put("threshold", threshold);
         data.put("value", temperature);
 
@@ -72,12 +72,13 @@ public class MeasurementSinkFunction implements ElasticsearchSinkFunction<Object
     @Override
     public void process(ObjectNode element, RuntimeContext ctx, RequestIndexer indexer) {
         JsonNode content = element.get("value");
+        indexer.add(createIndexRequest(content));
 
         if (content.hasNonNull("timestamp") && content.get("timestamp").isTextual()) {
             indexer.add(createIndexRequest(content));
 
-            if (content.hasNonNull("temperature") && content.get("temperature").isFloat()) {
-                float temperature = content.get("temperature").floatValue();
+            if (content.hasNonNull("temperature") && content.get("temperature").isDouble()) {
+                double temperature = content.get("temperature").doubleValue();
 
                 if (temperature > threshold) {
                     indexer.add(createThresholdTransgressionRequest(content));

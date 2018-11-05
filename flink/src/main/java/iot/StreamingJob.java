@@ -76,6 +76,7 @@ public class StreamingJob {
 
         //FlinkKafkaConsumer011<ObjectNode> consumer = new FlinkKafkaConsumer011<>(Arrays.asList("measurements", "threshold_change"), new JSONKeyValueDeserializationSchema(false), properties);
         FlinkKafkaConsumer011<ObjectNode> consumer = new FlinkKafkaConsumer011<>("measurements", new JSONKeyValueDeserializationSchema(false), properties);
+        consumer.setStartFromEarliest();
         // FlinkKafkaConsumer011<ObjectNode> thresholdChangeConsumer = new FlinkKafkaConsumer011<>("threshold_change", new JSONKeyValueDeserializationSchema(false), properties);
 
         DataStream<ObjectNode> measurementsStream = env.addSource(consumer);
