@@ -19,10 +19,8 @@
 package iot;
 
 import iot.sink.functions.MeasurementSinkFunction;
-import iot.sink.functions.ThresholdChangeSinkFunction;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
-import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.elasticsearch5.ElasticsearchSink;
@@ -48,14 +46,6 @@ import java.util.*;
 public class StreamingJob {
     private static float threshold = 10f;
 
-    public static void setThreshold(float newThreshold) {
-        threshold = newThreshold;
-    }
-
-    public static float getThreshold() {
-        return threshold;
-    }
-
     public static void addFloatIfExistsInObject(JsonNode node, String key, Map<String, Object> map) {
         if (node.hasNonNull(key)) {
             map.put(key, node.get(key).floatValue());
@@ -66,18 +56,6 @@ public class StreamingJob {
         if (node.hasNonNull(key)) {
             map.put(key, node.get(key).asText());
         }
-    }
-
-    private static void setupStream(StreamExecutionEnvironment env, Map<String, String> config, List<InetSocketAddress> transportAddresses, Properties properties) {
-        FlinkKafkaConsumer011<ObjectNode> measurementsConsumer = new FlinkKafkaConsumer011<>("measurements", new JSONKeyValueDeserializationSchema(false), properties);
-        FlinkKafkaConsumer011<ObjectNode> thresholdChangeConsumer = new FlinkKafkaConsumer011<>("threshold_change", new JSONKeyValueDeserializationSchema(false), properties);
-
-        DataStream<ObjectNode> measurementsStream = env.addSource(measurementsConsumer);
-        DataStream<ObjectNode> thresholdChangeStream = env.addSource(thresholdChangeConsumer);
-        ConnectedStreams<ObjectNode, ObjectNode> streams = measurementsStream.connect(thresholdChangeStream);
-
-        streams.getFirstInput().addSink(new ElasticsearchSink<>(config, transportAddresses, new MeasurementSinkFunction()));
-        streams.getSecondInput().addSink(new ElasticsearchSink<>(config, transportAddresses, new ThresholdChangeSinkFunction()));
     }
 
     public static void main(String[] args) throws Exception {
@@ -96,7 +74,16 @@ public class StreamingJob {
         List<InetSocketAddress> transportAddresses = new ArrayList<>();
         transportAddresses.add(new InetSocketAddress(InetAddress.getByName("elasticsearch"), 9300));
 
-        setupStream(env, config, transportAddresses, properties);
+        //FlinkKafkaConsumer011<ObjectNode> consumer = new FlinkKafkaConsumer011<>(Arrays.asList("measurements", "threshold_change"), new JSONKeyValueDeserializationSchema(false), properties);
+        FlinkKafkaConsumer011<ObjectNode> consumer = new FlinkKafkaConsumer011<>("measurements", new JSONKeyValueDeserializationSchema(false), properties);
+        // FlinkKafkaConsumer011<ObjectNode> thresholdChangeConsumer = new FlinkKafkaConsumer011<>("threshold_change", new JSONKeyValueDeserializationSchema(false), properties);
+
+        DataStream<ObjectNode> measurementsStream = env.addSource(consumer);
+        // DataStream<ObjectNode> thresholdChangeStream = env.addSource(thresholdChangeConsumer);
+        // ConnectedStreams<ObjectNode, ObjectNode> streams = measurementsStream.connect(thresholdChangeStream);
+
+        measurementsStream.addSink(new ElasticsearchSink<>(config, transportAddresses, new MeasurementSinkFunction(args)));
+        // measurementsStream.addSink(new ElasticsearchSink<>(config, transportAddresses, new ThresholdChangeSinkFunction()));
 
         // execute program
         env.execute("Room Environment Monitoring");

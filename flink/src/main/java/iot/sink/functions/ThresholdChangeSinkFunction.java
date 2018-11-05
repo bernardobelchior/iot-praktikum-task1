@@ -12,16 +12,15 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static iot.StreamingJob.addIfExistsInObject;
-import static iot.StreamingJob.setThreshold;
 
 public class ThresholdChangeSinkFunction implements ElasticsearchSinkFunction<ObjectNode> {
-    IndexRequest createIndexRequest(JsonNode content) {
+    private IndexRequest createIndexRequest(JsonNode content) {
         Map<String, Map<String, Object>> json = new HashMap<>();
         Map<String, Object> data = new HashMap<>();
 
         float newThreshold = content.get("threshold").floatValue();
 
-        setThreshold(newThreshold);
+        // setThreshold(newThreshold);
 
         data.put("threshold", newThreshold);
         addIfExistsInObject(content, "timestamp", data);

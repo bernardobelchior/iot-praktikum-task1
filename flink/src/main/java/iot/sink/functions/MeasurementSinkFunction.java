@@ -2,6 +2,7 @@ package iot.sink.functions;
 
 import iot.NotificationManager;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
@@ -15,20 +16,30 @@ import java.util.Map;
 
 import static iot.StreamingJob.addFloatIfExistsInObject;
 import static iot.StreamingJob.addIfExistsInObject;
-import static iot.StreamingJob.getThreshold;
 
 public class MeasurementSinkFunction implements ElasticsearchSinkFunction<ObjectNode> {
-    private final NotificationManager notificationManager = new NotificationManager();
+    private final String from;
+    private final String password;
+    private final String to;
 
+    private final float threshold = 10f;
 
-    IndexRequest createThresholdTransgressionRequest(JsonNode content) {
+    public MeasurementSinkFunction(String[] args) {
+        final ParameterTool parameterTool = ParameterTool.fromArgs(args);
+
+        this.from = parameterTool.get("GMAIL_FROM");
+        this.password = parameterTool.get("GMAIL_PASSWORD");
+        this.to = parameterTool.get("GMAIL_TO");
+    }
+
+    private IndexRequest createThresholdTransgressionRequest(JsonNode content) {
         Map<String, Map<String, Object>> json = new HashMap<>();
         Map<String, Object> data = new HashMap<>();
 
         float temperature = content.get("temperature").floatValue();
 
         data.put("timestamp", content.get("timestamp"));
-        data.put("threshold", getThreshold());
+        data.put("threshold", threshold);
         data.put("value", temperature);
 
         json.put("data", data);
@@ -39,7 +50,7 @@ public class MeasurementSinkFunction implements ElasticsearchSinkFunction<Object
                 .source(json);
     }
 
-    IndexRequest createIndexRequest(JsonNode content) {
+    private IndexRequest createIndexRequest(JsonNode content) {
         Map<String, Map<String, Object>> json = new HashMap<>();
         Map<String, Object> data = new HashMap<>();
 
@@ -54,7 +65,7 @@ public class MeasurementSinkFunction implements ElasticsearchSinkFunction<Object
 
         return Requests.indexRequest()
                 .index("measurements")
-                .type("measurements")
+                .type("measurement")
                 .source(json);
     }
 
@@ -68,11 +79,11 @@ public class MeasurementSinkFunction implements ElasticsearchSinkFunction<Object
             if (content.hasNonNull("temperature") && content.get("temperature").isFloat()) {
                 float temperature = content.get("temperature").floatValue();
 
-                if (temperature > getThreshold()) {
+                if (temperature > threshold) {
                     indexer.add(createThresholdTransgressionRequest(content));
 
                     try {
-                        notificationManager.sendNotification(getThreshold(), temperature);
+                        new NotificationManager(this.from, this.password, this.to).sendNotification(threshold, temperature);
                     } catch (MessagingException e) {
                         e.printStackTrace();
                     }

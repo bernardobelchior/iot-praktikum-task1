@@ -7,22 +7,24 @@ import java.util.Date;
 import java.util.Properties;
 
 public class NotificationManager {
-    private String to = System.getenv("GMAIL_TO");
-    private String from = System.getenv("GMAIL_FROM");
-    private Session session;
+    private final String to;
+    private final String from;
+    private final Session session;
 
-
-    public NotificationManager() {
+    public NotificationManager(String from, String password, String to) {
         Properties props = new Properties();
         props.put("mail.smtp.auth", "true");
         props.put("mail.smtp.starttls.enable", "true");
         props.put("mail.smtp.host", "smtp.gmail.com");
         props.put("mail.smtp.port", "587");
 
+        this.from = from;
+        this.to = to;
+
         this.session = Session.getInstance(props, new Authenticator() {
             @Override
             protected PasswordAuthentication getPasswordAuthentication() {
-                return new PasswordAuthentication(from, System.getenv("GMAIL_PASSWORD"));
+                return new PasswordAuthentication(from, password);
             }
         });
     }
