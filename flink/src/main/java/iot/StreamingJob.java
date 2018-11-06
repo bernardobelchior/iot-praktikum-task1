@@ -18,7 +18,7 @@
 
 package iot;
 
-import iot.sink.functions.MeasurementSinkFunction;
+import iot.sink.functions.SinkFunction;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -61,6 +61,7 @@ public class StreamingJob {
     public static void main(String[] args) throws Exception {
         // set up the streaming execution environment
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.enableCheckpointing(5000);
 
         Properties properties = new Properties();
         properties.setProperty("bootstrap.servers", "kafka-internal:9092");
@@ -74,17 +75,11 @@ public class StreamingJob {
         List<InetSocketAddress> transportAddresses = new ArrayList<>();
         transportAddresses.add(new InetSocketAddress(InetAddress.getByName("elasticsearch"), 9300));
 
-        //FlinkKafkaConsumer011<ObjectNode> consumer = new FlinkKafkaConsumer011<>(Arrays.asList("measurements", "threshold_change"), new JSONKeyValueDeserializationSchema(false), properties);
-        FlinkKafkaConsumer011<ObjectNode> consumer = new FlinkKafkaConsumer011<>("measurements", new JSONKeyValueDeserializationSchema(false), properties);
-        consumer.setStartFromEarliest();
-        // FlinkKafkaConsumer011<ObjectNode> thresholdChangeConsumer = new FlinkKafkaConsumer011<>("threshold_change", new JSONKeyValueDeserializationSchema(false), properties);
+        FlinkKafkaConsumer011<ObjectNode> consumer = new FlinkKafkaConsumer011<>(Arrays.asList("measurements", "threshold_change"), new JSONKeyValueDeserializationSchema(true), properties);
 
         DataStream<ObjectNode> measurementsStream = env.addSource(consumer);
-        // DataStream<ObjectNode> thresholdChangeStream = env.addSource(thresholdChangeConsumer);
-        // ConnectedStreams<ObjectNode, ObjectNode> streams = measurementsStream.connect(thresholdChangeStream);
 
-        measurementsStream.addSink(new ElasticsearchSink<>(config, transportAddresses, new MeasurementSinkFunction(args)));
-        // measurementsStream.addSink(new ElasticsearchSink<>(config, transportAddresses, new ThresholdChangeSinkFunction()));
+        measurementsStream.addSink(new ElasticsearchSink<>(config, transportAddresses, new SinkFunction(args)));
 
         // execute program
         env.execute("Room Environment Monitoring");

@@ -13,18 +13,19 @@ import org.elasticsearch.client.Requests;
 import javax.mail.MessagingException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static iot.StreamingJob.addFloatIfExistsInObject;
 import static iot.StreamingJob.addIfExistsInObject;
 
-public class MeasurementSinkFunction implements ElasticsearchSinkFunction<ObjectNode> {
+public class SinkFunction implements ElasticsearchSinkFunction<ObjectNode> {
     private final String from;
     private final String password;
     private final String to;
 
-    private final float threshold = 10f;
+    private float threshold = 10f;
 
-    public MeasurementSinkFunction(String[] args) {
+    public SinkFunction(String[] args) {
         final ParameterTool parameterTool = ParameterTool.fromArgs(args);
 
         this.from = parameterTool.get("GMAIL_FROM");
@@ -50,7 +51,7 @@ public class MeasurementSinkFunction implements ElasticsearchSinkFunction<Object
                 .source(json);
     }
 
-    private IndexRequest createIndexRequest(JsonNode content) {
+    private IndexRequest createMeasurementRequest(JsonNode content) {
         Map<String, Map<String, Object>> json = new HashMap<>();
         Map<String, Object> data = new HashMap<>();
 
@@ -69,13 +70,34 @@ public class MeasurementSinkFunction implements ElasticsearchSinkFunction<Object
                 .source(json);
     }
 
-    @Override
-    public void process(ObjectNode element, RuntimeContext ctx, RequestIndexer indexer) {
-        JsonNode content = element.get("value");
-        indexer.add(createIndexRequest(content));
+    private Optional<IndexRequest> createThresholdChangeRequest(JsonNode content) {
+        if ((content.hasNonNull("timestamp") && content.get("timestamp").isTextual() &&
+                content.hasNonNull("threshold") && content.get("threshold").isDouble()
+        )) {
+            Map<String, Map<String, Object>> json = new HashMap<>();
+            Map<String, Object> data = new HashMap<>();
 
+            float newThreshold = content.get("threshold").floatValue();
+
+            this.threshold = newThreshold;
+
+            data.put("threshold", newThreshold);
+            data.put("timestamp", content.get("timestamp").asText());
+
+            json.put("data", data);
+
+            return Optional.of(Requests.indexRequest()
+                    .index("measurements")
+                    .type("threshold")
+                    .source(json));
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    private void handleMeasurementRequest(RequestIndexer indexer, JsonNode content) {
         if (content.hasNonNull("timestamp") && content.get("timestamp").isTextual()) {
-            indexer.add(createIndexRequest(content));
+            indexer.add(createMeasurementRequest(content));
 
             if (content.hasNonNull("temperature") && content.get("temperature").isDouble()) {
                 double temperature = content.get("temperature").doubleValue();
@@ -91,6 +113,24 @@ public class MeasurementSinkFunction implements ElasticsearchSinkFunction<Object
                 }
             }
         }
+    }
 
+    @Override
+    public void process(ObjectNode element, RuntimeContext ctx, RequestIndexer indexer) {
+        JsonNode metadata = element.get("metadata");
+
+        if (!metadata.isNull()) {
+            String topic = metadata.get("topic").asText();
+            JsonNode content = element.get("value");
+
+            switch (topic) {
+                case "measurements":
+                    handleMeasurementRequest(indexer, content);
+                    break;
+                case "threshold_change":
+                    createThresholdChangeRequest(content).ifPresent(indexer::add);
+                    break;
+            }
+        }
     }
 }
