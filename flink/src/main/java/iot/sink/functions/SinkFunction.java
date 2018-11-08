@@ -33,7 +33,8 @@ public class SinkFunction implements ElasticsearchSinkFunction<ObjectNode> {
         this.to = parameterTool.get("GMAIL_TO");
     }
 
-    private IndexRequest createThresholdTransgressionRequest(JsonNode content) {
+
+    IndexRequest createThresholdTransgressionRequest(JsonNode content) {
         Map<String, Map<String, Object>> json = new HashMap<>();
         Map<String, Object> data = new HashMap<>();
 
@@ -72,7 +73,7 @@ public class SinkFunction implements ElasticsearchSinkFunction<ObjectNode> {
 
     private Optional<IndexRequest> createThresholdChangeRequest(JsonNode content) {
         if ((content.hasNonNull("timestamp") && content.get("timestamp").isTextual() &&
-                content.hasNonNull("threshold") && content.get("threshold").isDouble()
+                content.hasNonNull("threshold") && content.get("threshold").isNumber()
         )) {
             Map<String, Map<String, Object>> json = new HashMap<>();
             Map<String, Object> data = new HashMap<>();
@@ -95,18 +96,22 @@ public class SinkFunction implements ElasticsearchSinkFunction<ObjectNode> {
         }
     }
 
+    private void sendNotification(float threshold, double temperature) throws MessagingException {
+        new NotificationManager(this.from, this.password, this.to).sendNotification(threshold, temperature);
+    }
+
     private void handleMeasurementRequest(RequestIndexer indexer, JsonNode content) {
         if (content.hasNonNull("timestamp") && content.get("timestamp").isTextual()) {
             indexer.add(createMeasurementRequest(content));
 
-            if (content.hasNonNull("temperature") && content.get("temperature").isDouble()) {
+            if (content.hasNonNull("temperature") && content.get("temperature").isNumber()) {
                 double temperature = content.get("temperature").doubleValue();
 
                 if (temperature > threshold) {
                     indexer.add(createThresholdTransgressionRequest(content));
 
                     try {
-                        new NotificationManager(this.from, this.password, this.to).sendNotification(threshold, temperature);
+                        sendNotification(threshold, temperature);
                     } catch (MessagingException e) {
                         e.printStackTrace();
                     }

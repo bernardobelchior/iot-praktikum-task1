@@ -44,8 +44,6 @@ import java.util.*;
  * method, change the respective entry in the POM.xml file (simply search for 'mainClass').
  */
 public class StreamingJob {
-    private static float threshold = 10f;
-
     public static void addFloatIfExistsInObject(JsonNode node, String key, Map<String, Object> map) {
         if (node.hasNonNull(key)) {
             map.put(key, node.get(key).floatValue());

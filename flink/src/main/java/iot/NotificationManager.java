@@ -3,6 +3,7 @@ package iot;
 import javax.mail.*;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
+import java.text.DecimalFormat;
 import java.util.Date;
 import java.util.Properties;
 
@@ -30,8 +31,11 @@ public class NotificationManager {
     }
 
     public void sendNotification(float threshold, double currentValue) throws MessagingException {
+        DecimalFormat df = new DecimalFormat();
+        df.setMaximumFractionDigits(1);
+
         String msgText = "The temperature in your room is above the defined threshold.\n"
-                + "The current value of the threshold is " + threshold + "ºC and the current temperature is " + currentValue + "ºC.";
+                + "The current value of the threshold is " + df.format(threshold) + "ºC and the current temperature is " + df.format(currentValue) + "ºC.";
 
         // create a message
         MimeMessage msg = new MimeMessage(session);
