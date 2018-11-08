@@ -1,0 +1,8 @@
+[package]
+name = "weather-board-rs"
+version = "0.1.0"
+authors = ["Bernardo Belchior <bernardo.belchior1@gmail.com>"]
+
+[dependencies]
+bme280 = { git = "https://github.com/bernardobelchior/BME280"}
+i2cdev = "0.3.1"
