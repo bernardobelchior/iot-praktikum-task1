@@ -23,7 +23,7 @@ bme280 = BME280.BME280(sys.argv[1], 0x03, 0x02, 0x02, 0x02)
 
 producer_server = sys.argv[2].strip()
 
-print("Connecting Kafka Producer to", producer_server)
+print "Connecting Kafka Producer to", producer_server
 
 producer = KafkaProducer(bootstrap_servers=producer_server)
 
@@ -34,19 +34,25 @@ def get_altitude(pressure, seaLevel):
 
 
 def next_threshold(current_threshold):
-    """Cycles between 10, 15 and 20 degrees Celsius"""
-    return (current_threshold - 5) % 15 + 10
+    """Cycles between 10, 15, 20, 25 and 30 degrees Celsius"""
+    return (current_threshold - 5) % 25 + 10
 
 
-# Initial temperature threshold is 10 degrees Celsius
-temp_threshold = 10
+# Initial temperature threshold is 30 degrees Celsius, which will be changed afterwards to 10.
+temp_threshold = 30
 
 
 def on_button_press():
-    print("Button pressed")
+    global temp_threshold
+
     temp_threshold = next_threshold(temp_threshold)
-    message = {'threshold': temp_threshold}
+    timestamp = datetime.now(TIMEZONE).isoformat()
+    message = {'threshold': temp_threshold, 'timestamp': timestamp}
+    print 'Temperature threshold set to', temp_threshold, 'C'
     producer.send('threshold_change', json.dumps(message).encode('utf-8'))
+
+# Set the threshold to initial value
+on_button_press()
 
 
 button = GPIOButton(BUTTON_GPIO_PIN)
@@ -74,8 +80,8 @@ while True:
     message = {'temperature': temperature, 'humidity': humidity,
                'pressure': pressure / 100.0, 'altitude': altitude, 'timestamp': timestamp}
 
-    print(message)
+    print "Current temperature:", temperature, "C"
 
     producer.send('measurements', json.dumps(message).encode('utf-8'))
 
-    time.sleep(15)
+    time.sleep(10)
